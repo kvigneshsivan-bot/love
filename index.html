@@ -185,6 +185,23 @@ canvas{
     animation:floatUp 5s linear infinite;
 }
 
+/* Play button when browser blocks autoplay */
+.play-btn{
+    position:fixed;
+    left:50%;
+    bottom:24px;
+    transform:translateX(-50%);
+    padding:10px 18px;
+    border-radius:24px;
+    border:none;
+    background:linear-gradient(45deg,#ff6ec7,#ffb347);
+    color:#111;
+    font-weight:bold;
+    box-shadow:0 6px 20px rgba(0,0,0,0.25);
+    z-index:9999;
+    cursor:pointer;
+}
+
 </style>
 </head>
 
@@ -225,7 +242,8 @@ canvas{
 
 <div id="finalLove" class="animated-text">I LOVE YOU ❤️</div>
 
-<audio id="bgSong" src="love.mpeg"></audio>
+<audio id="bgSong" src="https://image2url.com/r2/default/audio/1771145165663-d078a638-f607-45dd-b4f0-36ac4b4b2800.mp3" loop></audio>
+<button id="playFallback" class="play-btn" style="display:none;">Play Song ▶️</button>
 
 </div>
 
@@ -236,6 +254,11 @@ function goNext(){
 page1.style.display="none";
 page2.style.display="flex";
 }
+
+// Define page element references used throughout the script
+const page1 = document.getElementById('page1');
+const page2 = document.getElementById('page2');
+const page3 = document.getElementById('page3');
 
 /* YES BUTTON MOVE */
 const yesBtn=document.getElementById("yesBtn");
@@ -254,16 +277,34 @@ const bgSong=document.getElementById("bgSong");
 function goThird(){
 page2.style.display="none";
 page3.style.display="block";
+    bgSong.currentTime=0;
+    bgSong.loop = true;
 
-bgSong.currentTime=0;
-bgSong.play();
+    const playPromise = bgSong.play();
+    if (playPromise !== undefined) {
+        playPromise.then(()=>{
+            document.getElementById("playFallback").style.display = "none";
+        }).catch(()=>{
+            document.getElementById("playFallback").style.display = "block";
+        });
+    }
 
-setTimeout(()=>{
-document.getElementById("finalLove").style.display="block";
-},5000);
+    setTimeout(()=>{
+        document.getElementById("finalLove").style.display="block";
+    },5000);
 
-startHearts();
+    startHearts();
 }
+
+// Fallback play button handler (shown if autoplay blocked)
+document.getElementById("playFallback").addEventListener("click", ()=>{
+    bgSong.play().then(()=>{
+        document.getElementById("playFallback").style.display = "none";
+    }).catch(()=>{
+        // still blocked — keep button visible
+        document.getElementById("playFallback").style.display = "block";
+    });
+});
 
 /* STAR ANIMATION */
 const canvas=document.getElementById("stars");
