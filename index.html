@@ -172,6 +172,36 @@ canvas{
     display:none;
 }
 
+/* ===== PAGE 4 ===== */
+#page4{
+    display:none;
+    height:100vh;
+    background:linear-gradient(to bottom,#ff0066,#ff6600,#ffcc00);
+    position:relative;
+    justify-content:center;
+    align-items:center;
+}
+
+#prankText{
+    font-size:80px;
+    font-weight:bold;
+    color:white;
+    text-shadow:0 0 30px rgba(0,0,0,0.5);
+    opacity:0;
+    animation:prankFadeIn 0.8s ease-in-out forwards;
+}
+
+@keyframes prankFadeIn{
+    0%{
+        opacity:0;
+        transform:scale(0.5);
+    }
+    100%{
+        opacity:1;
+        transform:scale(1);
+    }
+}
+
 /* ===== HEART FLOAT ===== */
 @keyframes floatUp{
     0%{ transform:translateY(0); opacity:1;}
@@ -242,9 +272,14 @@ canvas{
 
 <div id="finalLove" class="animated-text">I LOVE YOU ❤️</div>
 
-<audio id="bgSong" src="https://image2url.com/r2/default/audio/1771145165663-d078a638-f607-45dd-b4f0-36ac4b4b2800.mp3" loop></audio>
+<audio id="bgSong" src="https://image2url.com/r2/default/audio/1771145165663-d078a638-f607-45dd-b4f0-36ac4b4b2800.mp3"></audio>
 <button id="playFallback" class="play-btn" style="display:none;">Play Song ▶️</button>
 
+</div>
+
+<!-- PAGE 4 -->
+<div id="page4">
+<div id="prankText">PRANK 😜</div>
 </div>
 
 <script>
@@ -259,6 +294,7 @@ page2.style.display="flex";
 const page1 = document.getElementById('page1');
 const page2 = document.getElementById('page2');
 const page3 = document.getElementById('page3');
+const page4 = document.getElementById('page4');
 
 /* YES BUTTON MOVE */
 const yesBtn=document.getElementById("yesBtn");
@@ -274,26 +310,61 @@ yesBtn.style.top=Math.random()*maxY+"px";
 /* THIRD PAGE + SONG */
 const bgSong=document.getElementById("bgSong");
 
-function goThird(){
-page2.style.display="none";
-page3.style.display="block";
-    bgSong.currentTime=0;
-    bgSong.loop = true;
+// timers/interval ids so we can clear them if user navigates again
+let heartsIntervalId = null;
+let finalLoveTimerId = null;
+let redirectTimerId = null;
 
+function goThird(){
+    // clear any previous timers/intervals
+    if (heartsIntervalId) { clearInterval(heartsIntervalId); heartsIntervalId = null; }
+    if (finalLoveTimerId) { clearTimeout(finalLoveTimerId); finalLoveTimerId = null; }
+    if (redirectTimerId) { clearTimeout(redirectTimerId); redirectTimerId = null; }
+
+    page2.style.display = "none";
+    page3.style.display = "block";
+    document.getElementById("finalLove").style.display = "none";
+
+    bgSong.currentTime = 0;
+    bgSong.loop = false; // ensure it plays only once
+
+    // Try to play immediately (this call is initiated by a user gesture)
     const playPromise = bgSong.play();
     if (playPromise !== undefined) {
         playPromise.then(()=>{
             document.getElementById("playFallback").style.display = "none";
         }).catch(()=>{
+            // autoplay blocked — show fallback button so user can start playback
             document.getElementById("playFallback").style.display = "block";
         });
     }
 
-    setTimeout(()=>{
-        document.getElementById("finalLove").style.display="block";
-    },5000);
+    // Show the big "I LOVE YOU" text after 5 seconds
+    finalLoveTimerId = setTimeout(()=>{
+        document.getElementById("finalLove").style.display = "block";
+    }, 5000);
 
-    startHearts();
+    // After exactly 2 minutes stop the song and go to page 4
+    redirectTimerId = setTimeout(()=>{
+        bgSong.pause();
+        bgSong.currentTime = 0;
+
+        // hide page3, show page4 centered
+        page3.style.display = "none";
+        page4.style.display = "flex";
+
+        // trigger the prank text animation after 1s
+        setTimeout(()=>{
+            const pt = document.getElementById("prankText");
+            pt.style.animation = "none";
+            // force reflow then re-apply animation so it plays when page becomes visible
+            void pt.offsetWidth;
+            pt.style.animation = "prankFadeIn 0.8s ease-in-out forwards";
+        }, 1000);
+    }, 120000);
+
+    // Start hearts and keep the interval id so we can clear it later
+    heartsIntervalId = startHearts();
 }
 
 // Fallback play button handler (shown if autoplay blocked)
@@ -304,6 +375,25 @@ document.getElementById("playFallback").addEventListener("click", ()=>{
         // still blocked — keep button visible
         document.getElementById("playFallback").style.display = "block";
     });
+});
+
+// If the song ends naturally before the 2-minute timer, immediately go to page 4
+bgSong.addEventListener('ended', ()=>{
+    // clear the 2-minute redirect timer if set
+    if (redirectTimerId) { clearTimeout(redirectTimerId); redirectTimerId = null; }
+    if (finalLoveTimerId) { clearTimeout(finalLoveTimerId); finalLoveTimerId = null; }
+    if (heartsIntervalId) { clearInterval(heartsIntervalId); heartsIntervalId = null; }
+
+    page3.style.display = 'none';
+    page4.style.display = 'flex';
+
+    // trigger prank text after 1s
+    setTimeout(()=>{
+        const pt = document.getElementById('prankText');
+        pt.style.animation = 'none';
+        void pt.offsetWidth;
+        pt.style.animation = 'prankFadeIn 0.8s ease-in-out forwards';
+    }, 1000);
 });
 
 /* STAR ANIMATION */
@@ -336,7 +426,7 @@ drawStars();
 
 /* HEART FLOAT */
 function startHearts(){
-setInterval(()=>{
+const id = setInterval(()=>{
 let heart=document.createElement("div");
 heart.className="heart";
 heart.innerHTML="❤️";
@@ -346,6 +436,7 @@ document.getElementById("page3").appendChild(heart);
 
 setTimeout(()=>{heart.remove();},5000);
 },500);
+return id;
 }
 
 </script>
