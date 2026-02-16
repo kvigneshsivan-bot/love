@@ -202,6 +202,32 @@ canvas{
     }
 }
 
+/* enhanced prank animations */
+@keyframes flyIn {
+    0%{ transform:translateY(-200px) scale(0.6) rotate(-10deg); opacity:0; }
+    60%{ transform:translateY(20px) scale(1.05) rotate(6deg); opacity:1; }
+    100%{ transform:translateY(0) scale(1) rotate(0); opacity:1; }
+}
+
+@keyframes floatAround{
+    0%{ transform:translateY(0) translateX(0); }
+    50%{ transform:translateY(-12px) translateX(6px); }
+    100%{ transform:translateY(0) translateX(0); }
+}
+
+.prank-emoji{
+    position:absolute;
+    font-size:36px;
+    pointer-events:none;
+    opacity:0.95;
+    will-change:transform, opacity;
+}
+
+@keyframes emojiFlyUp{
+    0%{ transform:translateY(0) scale(0.8); opacity:1; }
+    100%{ transform:translateY(-120vh) scale(1.2); opacity:0; }
+}
+
 /* ===== HEART FLOAT ===== */
 @keyframes floatUp{
     0%{ transform:translateY(0); opacity:1;}
@@ -285,10 +311,14 @@ canvas{
 <script>
 
 /* PAGE SWITCH */
+/* PAGE SWITCH */
 function goNext(){
-page1.style.display="none";
-page2.style.display="flex";
+    page1.style.display = "none";
+    page2.style.display = "flex";
+    if (heartsIntervalId) { clearInterval(heartsIntervalId); heartsIntervalId = null; }
+    heartsIntervalId = startHearts('page2');
 }
+
 
 // Define page element references used throughout the script
 const page1 = document.getElementById('page1');
@@ -325,52 +355,44 @@ function goThird(){
     page3.style.display = "block";
     document.getElementById("finalLove").style.display = "none";
 
+    // start hearts on page3
+    if (heartsIntervalId) { clearInterval(heartsIntervalId); heartsIntervalId = null; }
+    heartsIntervalId = startHearts('page3');
+
     bgSong.currentTime = 0;
     bgSong.loop = false; // ensure it plays only once
 
-    // Try to play immediately (this call is initiated by a user gesture)
-    const playPromise = bgSong.play();
-    if (playPromise !== undefined) {
-        playPromise.then(()=>{
-            document.getElementById("playFallback").style.display = "none";
-        }).catch(()=>{
-            // autoplay blocked — show fallback button so user can start playback
-            document.getElementById("playFallback").style.display = "block";
-        });
-    }
-
-    // Show the big "I LOVE YOU" text after 5 seconds
+    // Do not autoplay here. Show "I LOVE YOU" after 5s and start playback then.
     finalLoveTimerId = setTimeout(()=>{
         document.getElementById("finalLove").style.display = "block";
+
+        // attempt playback when the text appears
+        const playPromise = bgSong.play();
+        if (playPromise !== undefined) {
+            playPromise.then(()=>{
+                document.getElementById("playFallback").style.display = "none";
+                // start 2-minute redirect timer from actual playback
+                if (redirectTimerId) { clearTimeout(redirectTimerId); }
+                redirectTimerId = setTimeout(handleRedirectToPage4, 120000);
+            }).catch(()=>{
+                // autoplay blocked — show fallback button; redirect will start when user plays
+                document.getElementById("playFallback").style.display = "block";
+            });
+        } else {
+            // older browsers: start timer immediately
+            redirectTimerId = setTimeout(handleRedirectToPage4, 120000);
+        }
     }, 5000);
-
-    // After exactly 2 minutes stop the song and go to page 4
-    redirectTimerId = setTimeout(()=>{
-        bgSong.pause();
-        bgSong.currentTime = 0;
-
-        // hide page3, show page4 centered
-        page3.style.display = "none";
-        page4.style.display = "flex";
-
-        // trigger the prank text animation after 1s
-        setTimeout(()=>{
-            const pt = document.getElementById("prankText");
-            pt.style.animation = "none";
-            // force reflow then re-apply animation so it plays when page becomes visible
-            void pt.offsetWidth;
-            pt.style.animation = "prankFadeIn 0.8s ease-in-out forwards";
-        }, 1000);
-    }, 120000);
-
-    // Start hearts and keep the interval id so we can clear it later
-    heartsIntervalId = startHearts();
 }
 
 // Fallback play button handler (shown if autoplay blocked)
 document.getElementById("playFallback").addEventListener("click", ()=>{
     bgSong.play().then(()=>{
         document.getElementById("playFallback").style.display = "none";
+        // start redirect timer if not already started
+        if (!redirectTimerId) {
+            redirectTimerId = setTimeout(handleRedirectToPage4, 120000);
+        }
     }).catch(()=>{
         // still blocked — keep button visible
         document.getElementById("playFallback").style.display = "block";
@@ -383,18 +405,53 @@ bgSong.addEventListener('ended', ()=>{
     if (redirectTimerId) { clearTimeout(redirectTimerId); redirectTimerId = null; }
     if (finalLoveTimerId) { clearTimeout(finalLoveTimerId); finalLoveTimerId = null; }
     if (heartsIntervalId) { clearInterval(heartsIntervalId); heartsIntervalId = null; }
+    handleRedirectToPage4();
+});
+
+function handleRedirectToPage4(){
+    // clear timers/intervals
+    if (redirectTimerId) { clearTimeout(redirectTimerId); redirectTimerId = null; }
+    if (finalLoveTimerId) { clearTimeout(finalLoveTimerId); finalLoveTimerId = null; }
+    if (heartsIntervalId) { clearInterval(heartsIntervalId); heartsIntervalId = null; }
 
     page3.style.display = 'none';
     page4.style.display = 'flex';
+    setTimeout(()=>{ showPrankEffects(); }, 1000);
+}
 
-    // trigger prank text after 1s
-    setTimeout(()=>{
-        const pt = document.getElementById('prankText');
-        pt.style.animation = 'none';
-        void pt.offsetWidth;
-        pt.style.animation = 'prankFadeIn 0.8s ease-in-out forwards';
-    }, 1000);
-});
+// Show the prank text with enhanced flying effects and spawn emojis
+function showPrankEffects(){
+    const pt = document.getElementById('prankText');
+    pt.style.animation = 'none';
+    void pt.offsetWidth;
+    pt.style.animation = 'flyIn 0.9s ease-out forwards, floatAround 2s ease-in-out 0.9s infinite';
+
+    // spawn more flying emojis across the full width of the page
+    const emojis = ['😜','😂','🎉','💥','🤪','✨','❤️','😍','🎈','🔥'];
+    const count = 24;
+    for(let i=0;i<count;i++){
+        const e = document.createElement('div');
+        e.className = 'prank-emoji';
+        e.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+
+        // random horizontal start across the full width
+        const leftOffset = Math.random()*100; // percent 0 - 100
+        e.style.left = leftOffset + '%';
+
+        // random vertical start near bottom so they float up
+        const bottomOffset = 5 + Math.random()*60; // percent
+        e.style.bottom = bottomOffset + '%';
+
+        e.style.fontSize = (20 + Math.random()*50) + 'px';
+
+        const dur = 2500 + Math.random()*3500;
+        e.style.animation = `emojiFlyUp ${dur}ms linear forwards`;
+        e.style.animationDelay = (Math.random()*800) + 'ms';
+
+        page4.appendChild(e);
+        e.addEventListener('animationend', ()=> e.remove());
+    }
+}
 
 /* STAR ANIMATION */
 const canvas=document.getElementById("stars");
@@ -425,18 +482,19 @@ requestAnimationFrame(drawStars);
 drawStars();
 
 /* HEART FLOAT */
-function startHearts(){
-const id = setInterval(()=>{
-let heart=document.createElement("div");
-heart.className="heart";
-heart.innerHTML="❤️";
-heart.style.left=Math.random()*window.innerWidth+"px";
-heart.style.bottom="0px";
-document.getElementById("page3").appendChild(heart);
+function startHearts(targetId = 'page3'){
+    const container = document.getElementById(targetId) || document.body;
+    const id = setInterval(()=>{
+        let heart=document.createElement("div");
+        heart.className="heart";
+        heart.innerHTML="❤️";
+        heart.style.left=Math.random()*window.innerWidth+"px";
+        heart.style.bottom="0px";
+        container.appendChild(heart);
 
-setTimeout(()=>{heart.remove();},5000);
-},500);
-return id;
+        setTimeout(()=>{heart.remove();},5000);
+    },500);
+    return id;
 }
 
 </script>
